@@ -1,4 +1,7 @@
 search_term = nil
+RED   = "\e[31m"
+RESET = "\e[0m"
+
 
 if ARGV.include?("--search")
   index = ARGV.index("--search")
@@ -54,13 +57,24 @@ end
   puts "Search: \"#{search_term}\""
   puts "Occurrences: #{occurrences}"
 
-  if matching_lines.any?
-    puts
-    puts "Lines:"
-    matching_lines.each do |line_number, content|
-      puts "  #{line_number}: #{content}"
-    end
-  else
-    puts "No matches found."
+ if matching_lines.any?
+  puts
+  puts "Lines:"
+
+  matching_lines.each do |line_number, content|
+    highlighted = content.gsub(
+      /#{Regexp.escape(search_term)}/i,
+      "#{RED}\\0#{RESET}"
+    )
+
+    puts "  #{line_number}: #{highlighted}"
   end
+
+else
+  puts "No matches found."
 end
+
+
+ 
+end
+
