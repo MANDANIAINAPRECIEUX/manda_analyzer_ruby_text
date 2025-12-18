@@ -1,4 +1,5 @@
 require "optparse"
+require 'whatlanguage'
 
 RED   = "\e[31m"
 RESET = "\e[0m"
@@ -19,11 +20,19 @@ OptionParser.new do |opts|
     options[:search] = term
   end
 
+  opts.on("--tables", "Detect tables in the file") do
+  options[:tables] = true
+end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
   end
 end.parse!
+
+
+
+
 
 # Vérifie qu’un fichier est fourni
 if ARGV.empty?
@@ -37,6 +46,9 @@ unless File.exist?(file_path)
   puts "Erreur : le fichier '#{file_path}' n'existe pas."
   exit
 end
+
+
+
 
 # Initialisation des compteurs
 lines_count = 0
@@ -86,5 +98,52 @@ if options[:search]
     end
   else
     puts "No matches found."
+  end
+end
+
+
+text = File.read(file_path)
+lang_detector = WhatLanguage.new(:all)
+language = lang_detector.language_iso(text)
+puts "Detected language: #{language}"
+
+#fitadiavana tebleaux
+
+if options[:tables]
+  puts
+  puts "TABLE DETECTION"
+
+  current_table = []
+  tables = []
+
+  separator_regex = /(\|)|(,)|(;)|(\s{2,})/
+
+  File.foreach(file_path) do |line|
+    if line.match?(separator_regex)
+      current_table << line.strip
+    else
+      if current_table.size >= 2
+        tables << current_table
+      end
+      current_table = []
+    end
+  end
+
+  # Dernier tableau possible
+  if current_table.size >= 2
+    tables << current_table
+  end
+
+  if tables.empty?
+    puts " - No table detected"
+  else
+    puts " - Tables detected: #{tables.size}"
+    tables.each_with_index do |table, index|
+      puts
+      puts "Table #{index + 1}:"
+      table.first(3).each do |row|
+        puts "  #{row}"
+      end
+    end
   end
 end
