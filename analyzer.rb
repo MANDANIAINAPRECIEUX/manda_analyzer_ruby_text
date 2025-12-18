@@ -1,14 +1,38 @@
 require "optparse"
 require 'whatlanguage'
 
+# Couleurs pour le highlight
 RED   = "\e[31m"
 RESET = "\e[0m"
 
+# Options CLI
 options = {
   stats: false,
-  search: nil
+  search: nil,
+  tables: false
 }
 
+# Méthode pour détecter le type d'un tableau
+def detect_table_type(table_lines)
+  separators = {
+    "PIPE" => /\s*\|\s*/,
+    "CSV" => /\s*,\s*/,
+    "TSV" => /\t/,
+    "SEMICOLON" => /\s*;\s*/,
+    "ALIGNED" => /\s{2,}/
+  }
+
+  separators.each do |type, regex|
+    column_counts = table_lines.map { |line| line.split(regex).size }
+    if column_counts.uniq.size == 1 && column_counts.first >= 2
+      return [type, column_counts.first]
+    end
+  end
+
+  ["UNKNOWN", 0]
+end
+
+# Gestion des options CLI
 OptionParser.new do |opts|
   opts.banner = "Usage: ruby analyzer.rb <file> [options]"
 
@@ -21,18 +45,14 @@ OptionParser.new do |opts|
   end
 
   opts.on("--tables", "Detect tables in the file") do
-  options[:tables] = true
-end
+    options[:tables] = true
+  end
 
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
   end
 end.parse!
-
-
-
-
 
 # Vérifie qu’un fichier est fourni
 if ARGV.empty?
@@ -47,9 +67,6 @@ unless File.exist?(file_path)
   exit
 end
 
-
-
-
 # Initialisation des compteurs
 lines_count = 0
 words_count = 0
@@ -57,6 +74,7 @@ chars_count = 0
 occurrences = 0
 matching_lines = []
 
+# Lecture ligne par ligne
 File.foreach(file_path).with_index(1) do |line, line_number|
   lines_count += 1
   words_count += line.split.size
@@ -101,21 +119,17 @@ if options[:search]
   end
 end
 
-
+# Détection de la langue
 text = File.read(file_path)
 lang_detector = WhatLanguage.new(:all)
 language = lang_detector.language_iso(text)
+puts
 puts "Detected language: #{language}"
 
-#fitadiavana tebleaux
-
+# Détection des tableaux
 if options[:tables]
-  puts
-  puts "TABLE DETECTION"
-
-  current_table = []
   tables = []
-
+  current_table = []
   separator_regex = /(\|)|(,)|(;)|(\s{2,})/
 
   File.foreach(file_path) do |line|
@@ -128,22 +142,21 @@ if options[:tables]
       current_table = []
     end
   end
+  tables << current_table if current_table.size >= 2
 
-  # Dernier tableau possible
-  if current_table.size >= 2
-    tables << current_table
-  end
+  puts
+  puts "TABLE DETECTION"
 
   if tables.empty?
     puts " - No table detected"
   else
-    puts " - Tables detected: #{tables.size}"
     tables.each_with_index do |table, index|
+      type, columns = detect_table_type(table)
       puts
       puts "Table #{index + 1}:"
-      table.first(3).each do |row|
-        puts "  #{row}"
-      end
+      puts "  Type: #{type}"
+      puts "  Rows: #{table.size}"
+      puts "  Columns: #{columns}"
     end
   end
 end
